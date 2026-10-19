@@ -1,0 +1,80 @@
+model:
+  model_name: troika
+  prompt_template: ["a photo of x x", "a photo of x", "a photo of x"]
+  ctx_init: ["a photo of ", "a photo of ", "a photo of "]
+  clip_model: "ViT-L/14"
+  # clip_arch: /path/to/clip/ViT-L-14.pt
+
+  # Troika 原有架构参数
+  cmt_layers: 3
+  init_lamda: 0.1
+  cross_attn_dropout: 0.1
+  adapter_dim: 64
+  adapter_dropout: 0.1
+
+  # 三分支 loss 权重（保持原 Troika 默认值）
+  pair_loss_weight: 1.0
+  pair_inference_weight: 1.0
+  attr_loss_weight: 1.0
+  attr_inference_weight: 1.0
+  obj_loss_weight: 1.0
+  obj_inference_weight: 1.0
+
+  # ── DiffComp 新增：特征扩散网络 ──────────────────
+  # 网络结构
+  diff_n_layers: 4           # FDN Transformer 层数（参数量约 12M @ D=768）
+  diff_n_heads: 4            # FDN 注意力头数
+
+  # 扩散训练过程
+  diff_T: 1000               # 训练时的扩散总步数（余弦噪声计划）
+  diff_cfg_dropout: 0.1      # CFG 条件 dropout 概率（无条件分支比例）
+  diff_lambda: 0.5           # 扩散 loss 权重 λ（建议 0.3~0.5 调参）
+  diff_alpha: 0.3            # 属性/对象去噪路径权重 α
+
+  # FDN 独立优化器
+  diff_lr: 0.0001            # FDN 学习率（通常比 Troika 主网络 lr 大 2x）
+  diff_weight_decay: 0.00001
+
+  # DDIM 推理采样
+  diff_sample_T: 50          # DDIM 采样步数（50 步质量够用）
+  diff_guidance_scale: 2.0   # CFG 引导系数（1.5~3.0 均可尝试）
+
+  # 开放世界合成特征库
+  diff_synth_k: 5            # 每个候选组合采样次数（K=5 均值）
+  use_synth_feat: False      # 是否在 OW 推理启用合成特征库（True 时增加推理时间）
+  synth_weight: 0.3          # 合成 logit 融合权重
+  synth_build_batch: 256     # 构建合成库的批大小（根据 GPU 显存调整）
+
+train:
+  dataset: mit-states
+  # dataset_path: /path/to/mit-states
+
+  optimizer: Adam
+  scheduler: StepLR
+  step_size: 5
+  gamma: 0.5
+  lr: 0.0001
+  attr_dropout: 0.3
+  weight_decay: 0.00001
+  context_length: 8
+  train_batch_size: 32
+  gradient_accumulation_steps: 1
+  # seed: 0
+  epochs: 10
+  epoch_start: 0
+  # save_path: /path/to/save
+
+  val_metric: best_loss
+  save_final_model: True
+  # load_model: False
+
+test:
+  eval_batch_size: 32
+  open_world: False
+  # load_model: /path/to/val_best.pt
+  topk: 1
+  text_encoder_batch_size: 1024
+  # threshold: 0.4
+  threshold_trials: 50
+  bias: 0.001
+  text_first: True
